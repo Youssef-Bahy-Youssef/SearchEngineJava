@@ -7,7 +7,7 @@ import java.util.Map;
 public class PageRank {
     public static Map<String, Double> pageRankMap;
 
-    public static void main(String[] args) {
+    public static void start() {
 //        int[][] matrixData = {{1,1,0}, {1,0,0},{1,1,1}};
 //        double[]matrixData2 = { 1.0,2,3};
 //        double[]n = { 1.0,2,3};
@@ -21,10 +21,6 @@ public class PageRank {
         for(String key: builder.urlIndexMap.keySet()){
             // builder.urlIndexMap.get(key) is index of certain url
             pageRankMap.put(key,1e10*rank[builder.urlIndexMap.get(key)]);
-        }
-        for(String key:pageRankMap.keySet()){
-            System.out.println("URL:"+key);
-            System.out.println("\t\tRank:"+pageRankMap.get(key));
         }
 
     }

@@ -93,10 +93,10 @@ public class urlCleaner {
             if(index!=-1){
                 urlString=urlString.substring(0,index);
             }
-            URI uri = new URI(urlString);
-            URI cleanUri = new URI(uri.getScheme(), uri.getUserInfo(), uri.getHost(), uri.getPort(), uri.getPath(), null, null);
-            return cleanUri.toString();
-        } catch (URISyntaxException e) {
+            //URI uri = new URI(urlString);
+            //URI cleanUri = new URI(uri.getScheme(), uri.getUserInfo(), uri.getHost(), uri.getPort(), uri.getPath(), null, null);
+            return urlString;
+        } catch (Exception e) {
             // Handle URISyntaxException
             if(!urlString.contains("javascript:void(0)")){
                 System.out.println(urlString);

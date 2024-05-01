@@ -32,11 +32,13 @@ public class MongoClientConnect {
             }
         }
     }
-//        public void Insert(String word, IndexerObj item) {
-//        Document document = new Document("word", word)
-//                                .append("url", item.url)
-//                                .append("TFIDF", item.TFIDF)
-//                                .append("positions", item.positions);
-//        database.getCollection("Tokens").createIndex(document);
-//    }
+        public void Insert(String word, IndexerObj item) {
+        Document document = new Document("word", word)
+                                .append("url", item.url)
+                                .append("tf_idf", item.TFIDF)
+                                .append("positions", item.positions)
+                                .append("weight",item.weight)
+                                .append("rank",item.rank);
+        //database.getCollection("Tokens").createIndex(document);
+    }
 }

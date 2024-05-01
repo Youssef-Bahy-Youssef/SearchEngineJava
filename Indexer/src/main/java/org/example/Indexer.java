@@ -63,8 +63,17 @@ public class Indexer {
         docLength = new HashMap<>();
         words = new HashMap<>();
         docCount = 0;
+
 //        mongoDB = new MongoDB();
+        //calculate pagerank
+        PageRank.start();
+        //PageRank.pageRankMap[]
+        for(String key:PageRank.pageRankMap.keySet()){
+            System.out.println("URL:"+key);
+            System.out.println("\t\tRank:"+PageRank.pageRankMap.get(key));
+        }
         readStopWords();
+
         getDocuments(folder);
         stemming();
         calcTFIDF();
@@ -86,12 +95,17 @@ public class Indexer {
 
             try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
                 String url = br.readLine();
+                url = url.split(" ")[1];
                 url = urlCleaner.start(url);
                 urls.put(url, Boolean.TRUE);
                 String line;
                 while ((line = br.readLine()) != null) {
                     html.append(line).append("\n");
                 }
+                //url:stackoverflow.com Rank:1846697.2658817559
+                //URL:meta.stackoverflow.com
+                //Rank:1846697.2658817559
+
                 String parsedText = html2text(html.toString());
                 ArrayList<String> list = new ArrayList<>();
                 tokenize(parsedText, list);
@@ -145,8 +159,6 @@ public class Indexer {
             page.putIfAbsent(url, new IndexerObj());
             IndexerObj item = page.get(url);
             item.url = url;
-            //TODO:set the rank
-            item.rank=
             item.weight = weight;
         });
     }
@@ -223,7 +235,7 @@ public class Indexer {
                 page.putIfAbsent(url, new IndexerObj());
                 IndexerObj item = page.get(url);
                 item.url = url;
-                item.rank = 
+                item.rank =PageRank.pageRankMap.get(url);
                 item.TFIDF = TFIDF.get(word).get(url);
                 item.positions.add(wordPos);
             }
@@ -281,7 +293,7 @@ public class Indexer {
         scheduler.scheduleAtFixedRate(task, 10000, INTERVAL_HOURS, TimeUnit.HOURS);
     }
     public static void main(String[] args) throws Exception {
-        File folder = new File("src/main/resources/Files");
+        File folder = new File("src/main/resources/sample");
         Indexer indexer = new Indexer(folder);
     }
 }
