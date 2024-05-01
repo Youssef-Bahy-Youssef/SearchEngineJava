@@ -1,4 +1,4 @@
-https://www.mongodb.com/docs/drivers/java/sync/current/usage-examples/insertOne/
+URL:https://www.mongodb.com/docs/drivers/java/sync/current/usage-examples/insertOne/
 <!DOCTYPE html>
 <html>
 <body>

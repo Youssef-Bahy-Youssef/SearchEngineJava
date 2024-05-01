@@ -86,6 +86,7 @@ public class Indexer {
 
             try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
                 String url = br.readLine();
+                url = urlCleaner.start(url);
                 urls.put(url, Boolean.TRUE);
                 String line;
                 while ((line = br.readLine()) != null) {
@@ -144,6 +145,8 @@ public class Indexer {
             page.putIfAbsent(url, new IndexerObj());
             IndexerObj item = page.get(url);
             item.url = url;
+            //TODO:set the rank
+            item.rank=
             item.weight = weight;
         });
     }
@@ -220,6 +223,7 @@ public class Indexer {
                 page.putIfAbsent(url, new IndexerObj());
                 IndexerObj item = page.get(url);
                 item.url = url;
+                item.rank = 
                 item.TFIDF = TFIDF.get(word).get(url);
                 item.positions.add(wordPos);
             }

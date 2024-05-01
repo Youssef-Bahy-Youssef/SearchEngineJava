@@ -7,6 +7,7 @@ public class IndexerObj {
     ArrayList<Integer>positions;
     Float TFIDF;
     Integer weight;
+    Double rank;
     IndexerObj() {
         url = new String();
         positions = new ArrayList<Integer>();
