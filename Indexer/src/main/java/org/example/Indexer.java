@@ -64,7 +64,6 @@ public class Indexer {
         words = new HashMap<>();
         docCount = 0;
 
-//        mongoDB = new MongoDB();
         //calculate pagerank
         PageRank.start();
         //PageRank.pageRankMap[]
@@ -238,6 +237,7 @@ public class Indexer {
                 item.rank =PageRank.pageRankMap.get(url);
                 item.TFIDF = TFIDF.get(word).get(url);
                 item.positions.add(wordPos);
+                MongoClientConnect.Insert(word,item);
             }
         }
     }
