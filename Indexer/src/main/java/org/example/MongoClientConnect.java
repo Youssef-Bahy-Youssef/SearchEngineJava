@@ -13,13 +13,17 @@ import com.mongodb.client.result.InsertOneResult;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
+import javax.print.Doc;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 public class MongoClientConnect {
     public static MongoCollection<Document> invertedIndexCollection;
-    public static void main(String[] args) {
+    public static MongoDatabase database;
+    public static MongoClient mongoClient;
+
+    public static  void start() {
         String connectionString = "mongodb+srv://abdomohamed9192:abdomohamed9192@cluster0.tuy1dlo.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
         ServerApi serverApi = ServerApi.builder()
                 .version(ServerApiVersion.V1)
@@ -28,46 +32,37 @@ public class MongoClientConnect {
                 .applyConnectionString(new ConnectionString(connectionString))
                 .serverApi(serverApi)
                 .build();
-        // Create a new client and connect to the server
-        try (MongoClient mongoClient = MongoClients.create(settings)) {
-            try {
-                MongoDatabase database = mongoClient.getDatabase("SearchIndex");
-                invertedIndexCollection = database.getCollection("invertedIndex");
-                Document doc = invertedIndexCollection.find().first();
-                if (doc != null) {
-                    System.out.println(doc.toJson());
-                } else {
-                    System.out.println("No matching documents found.");
-                }
-                System.out.println("Pinged your deployment. You successfully connected to MongoDB!");
-                List<Document> nestedDocuments = new ArrayList<>();
-
-                // Loop to create nested documents dynamically
-                for (int i = 1; i <= 3; i++) {
-                    Document nestedDocument = new Document("field" + i, "value" + i);
-                    nestedDocuments.add(nestedDocument);
-                }
-
-                // Create a parent document with the nested array
-                Document parentDocument = new Document("nestedArray", nestedDocuments);
-
-                // Insert the parent document into the collection
-                invertedIndexCollection.insertOne(parentDocument);
-
-                System.out.println("Document inserted successfully!");
-            } catch (MongoException e) {
-                e.printStackTrace();
+        try {
+            mongoClient = MongoClients.create(settings);
+            database = mongoClient.getDatabase("SearchIndex");
+            invertedIndexCollection = database.getCollection("invertedIndex");
+            Document doc = invertedIndexCollection.find().first();
+            if (doc != null) {
+                System.out.println(doc.toJson());
+            } else {
+                System.out.println("No matching documents found.");
             }
+            System.out.println("Pinged your deployment. You successfully connected to MongoDB!");
+        } catch (MongoException e) {
+            e.printStackTrace();
         }
     }
-//        public static void Insert(String word, IndexerObj[] item) {
-////            Document document = new Document("word", word)
-////                                .append("url", item.url)
-////                                .append("tf_idf", item.TFIDF)
-////                                .append("positions", item.positions)
-////                                .append("weight",item.weight)
-////                                .append("rank",item.rank);
-//            InsertOneResult result = invertedIndexCollection.insertOne(document);
-//            System.out.println("Success! Inserted document id: " + result.getInsertedId());
-//    }
+
+    public static void InsertWord(String word, ArrayList<IndexerObj> items) {
+        List<Document> documents = new ArrayList<>();
+        for (IndexerObj item : items) {
+            Document document = new Document("word", word)
+                    .append("url", item.url)
+                    .append("tf_idf", item.TFIDF)
+                    .append("positions", item.positions)
+                    .append("weight", item.weight)
+                    .append("rank", item.rank);
+            documents.add(document);
+        }
+        Document wordDocument = new Document("Word", word)
+                .append("Pages", documents);
+        InsertOneResult result = invertedIndexCollection.insertOne(wordDocument);
+        System.out.println("Success! Inserted document id: " + result.getInsertedId());
+    }
 }
+

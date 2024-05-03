@@ -5,6 +5,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import java.io.*;
+import java.lang.reflect.Array;
 import java.util.*;
 
 import java.util.concurrent.Executors;
@@ -12,7 +13,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static java.lang.Math.*;
-
 public class Indexer {
     private Map<String, HashMap<String, IndexerObj>> invertedIndex;
     private Map<String, ArrayList<String>> documents;
@@ -64,6 +64,8 @@ public class Indexer {
         words = new HashMap<>();
         docCount = 0;
 
+//        mongoDB = new MongoDB();
+        MongoClientConnect.start();
         //calculate pagerank
         PageRank.start();
         //PageRank.pageRankMap[]
@@ -77,11 +79,12 @@ public class Indexer {
         stemming();
         calcTFIDF();
         createIndex();
+        createSearchIndex();
         printDocuments();
         scheduleTask();
     }
     private void readStopWords() throws IOException {
-        Scanner scanner = new Scanner(new File("src/main/resources/stopwords.txt"));
+        Scanner scanner = new Scanner(new File(System.getenv("RESOURCES_PATH")+"stopwords.txt"));
         while (scanner.hasNext()) {
             stopWords.put(scanner.next(), Boolean.TRUE);
         }
@@ -235,9 +238,20 @@ public class Indexer {
                 IndexerObj item = page.get(url);
                 item.url = url;
                 item.rank =PageRank.pageRankMap.get(url);
-                item.TFIDF = TFIDF.get(word).get(url);
-                item.positions.add(wordPos);          }
+                item.TFIDF = (double) TFIDF.get(word).get(url);
+                item.positions.add(wordPos);
+            }
         }
+    }
+    //    private Map<String, HashMap<String, IndexerObj>> invertedIndex;
+    private void createSearchIndex() {
+        invertedIndex.forEach((word, documents) -> {
+            ArrayList<IndexerObj>pages = new ArrayList<>();
+            documents.forEach((url, obj) -> {
+                pages.add(obj);
+            });
+            MongoClientConnect.InsertWord(word, pages);
+        });
     }
     private void printDocuments() {
         System.out.print(String.format("%10s", " "));
@@ -291,7 +305,7 @@ public class Indexer {
         scheduler.scheduleAtFixedRate(task, 10000, INTERVAL_HOURS, TimeUnit.HOURS);
     }
     public static void main(String[] args) throws Exception {
-        File folder = new File("src/main/resources/sample");
+        File folder = new File(System.getenv("RESOURCES_PATH")+"sample");
         Indexer indexer = new Indexer(folder);
     }
 }
