@@ -92,6 +92,7 @@ public class QueryProcessor {
      * @param query The phrase search query
      * @return List of relevant documents
      */
+    // after ali part
     private List<Document> searchIndex(String query) {
         List<Document> relevantDocuments = new ArrayList<>();
 
