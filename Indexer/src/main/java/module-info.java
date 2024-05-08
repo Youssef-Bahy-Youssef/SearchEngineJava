@@ -4,4 +4,5 @@ module Indexer {
     requires org.mongodb.driver.core;
     requires org.mongodb.driver.sync.client;
     requires java.desktop;
+    requires org.apache.opennlp.tools;
 }
