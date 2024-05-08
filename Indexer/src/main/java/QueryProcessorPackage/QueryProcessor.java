@@ -5,6 +5,7 @@ import opennlp.tools.stemmer.PorterStemmer;
 import java.util.ArrayList;
 import java.util.List;
 import org.bson.Document;
+import org.example.MongoClientConnect;
 
 import java.util.Scanner;
 import java.util.regex.Matcher;
@@ -15,18 +16,14 @@ import java.util.regex.Pattern;
  * including preprocessing and searching the index for relevant documents.
  */
 public class QueryProcessor {
-    // search index
-    private Indexer indexer;
     private PorterStemmer stemmer;
 
     /**
      * Constructor for the QueryProcessor class.
      * Initializes with an instance of Indexer.
      *
-     * @param indexer Instance of Indexer to access the index
      */
-    public QueryProcessor(Indexer indexer) {
-        this.indexer = indexer;
+    public QueryProcessor() {
         this.stemmer = new PorterStemmer();
     }
 
@@ -80,7 +77,7 @@ public class QueryProcessor {
 
         for (String word : processedQuery) {
             // Retrieve documents associated with each word from the Indexer
-            List<Document> documents = indexer.getDocumentsForWord(word);
+            List<Document> documents = MongoClientConnect.getDocumentsByWord(word);
             if (documents != null) {
                 relevantDocuments.addAll(documents);
             }
@@ -109,14 +106,14 @@ public class QueryProcessor {
         }
         Pattern pattern = Pattern.compile(patternBuilder.toString(), Pattern.CASE_INSENSITIVE);
 
-        // Search index for documents containing the exact phrase
-        for (Document document : indexer.getAllDocuments()) {
-            String text = document.getString("text"); // Assuming "text" field contains document content
-            Matcher matcher = pattern.matcher(text);
-            if (matcher.find()) {
-                relevantDocuments.add(document);
-            }
-        }
+//        // Search index for documents containing the exact phrase
+//        for (Document document : searchIndex.getAllDocuments()) {
+//            String text = document.getString("text"); // Assuming "text" field contains document content
+//            Matcher matcher = pattern.matcher(text);
+//            if (matcher.find()) {
+//                relevantDocuments.add(document);
+//            }
+//        }
         return relevantDocuments;
     }
 
@@ -141,6 +138,7 @@ public class QueryProcessor {
     }
     /*for testing*/
     public static void main(String[] args) throws Exception {
+        MongoClientConnect.start();
         QueryProcessor queryProcessor = new QueryProcessor();
         while(true) {
             System.out.println("Enter the Query or e to break");

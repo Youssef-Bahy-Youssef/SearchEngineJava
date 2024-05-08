@@ -10,6 +10,8 @@ import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.result.InsertOneResult;
+import com.mongodb.client.FindIterable;
+import com.mongodb.client.model.Filters;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
@@ -23,7 +25,7 @@ public class MongoClientConnect {
     public static MongoDatabase database;
     public static MongoClient mongoClient;
 
-    public static  void start() {
+    public static void start() {
         String connectionString = "mongodb+srv://abdomohamed9192:abdomohamed9192@cluster0.tuy1dlo.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
         ServerApi serverApi = ServerApi.builder()
                 .version(ServerApiVersion.V1)
@@ -63,6 +65,25 @@ public class MongoClientConnect {
                 .append("Pages", documents);
         InsertOneResult result = invertedIndexCollection.insertOne(wordDocument);
         System.out.println("Success! Inserted document id: " + result.getInsertedId());
+    }
+    /**
+     * Retrieves documents associated with a given word from the MongoDB collection.
+     *
+     * @param word The word to search for in the documents.
+     * @return A list of documents associated with the given word.
+     */
+    public static List<Document> getDocumentsByWord(String word) {
+        List<Document> resultDocuments = new ArrayList<>();
+
+        // Filter documents where the "Word" field matches the provided word
+        FindIterable<Document> documents = invertedIndexCollection.find(Filters.eq("Word", word));
+
+        // Iterate over the documents found and add them to a list
+        for (Document doc : documents) {
+            resultDocuments.add(doc);
+        }
+
+        return resultDocuments;
     }
 }
 
