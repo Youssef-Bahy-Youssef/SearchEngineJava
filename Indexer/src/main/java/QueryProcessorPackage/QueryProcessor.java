@@ -1,6 +1,5 @@
 package QueryProcessorPackage;
 
-import org.example.Indexer;
 import opennlp.tools.stemmer.PorterStemmer;
 import java.util.ArrayList;
 import java.util.List;
@@ -73,17 +72,22 @@ public class QueryProcessor {
      * @return List of relevant documents
      */
     private List<Document> searchIndex(List<String> processedQuery) {
-        List<Document> relevantDocuments = new ArrayList<>();
+        List<Document> relevantPages = new ArrayList<>();
 
         for (String word : processedQuery) {
             // Retrieve documents associated with each word from the Indexer
             List<Document> documents = MongoClientConnect.getDocumentsByWord(word);
             if (documents != null) {
-                relevantDocuments.addAll(documents);
+                for (Document doc : documents) {
+                    List<Document> pages = (List<Document>) doc.get("Pages");
+                    if (pages != null) {
+                        relevantPages.addAll(pages);
+                    }
+                }
             }
         }
 
-        return relevantDocuments;
+        return relevantPages;
     }
 
     /**
@@ -96,16 +100,16 @@ public class QueryProcessor {
     private List<Document> searchIndex(String query) {
         List<Document> relevantDocuments = new ArrayList<>();
 
-        // Remove quotation marks from the query
-        String phrase = query.substring(1, query.length() - 1);
-        // Split the phrase into individual words
-        String[] words = phrase.split("\\s+");
-        // Build regex pattern to match exact phrase
-        StringBuilder patternBuilder = new StringBuilder();
-        for (String word : words) {
-            patternBuilder.append("\\b").append(Pattern.quote(word)).append("\\b.*?");
-        }
-        Pattern pattern = Pattern.compile(patternBuilder.toString(), Pattern.CASE_INSENSITIVE);
+        //// Remove quotation marks from the query
+//        String phrase = query.substring(1, query.length() - 1);
+//        // Split the phrase into individual words
+//        String[] words = phrase.split("\\s+");
+//        // Build regex pattern to match exact phrase
+//        StringBuilder patternBuilder = new StringBuilder();
+//        for (String word : words) {
+//            patternBuilder.append("\\b").append(Pattern.quote(word)).append("\\b.*?");
+//        }
+//        Pattern pattern = Pattern.compile(patternBuilder.toString(), Pattern.CASE_INSENSITIVE);
 
 //        // Search index for documents containing the exact phrase
 //        for (Document document : searchIndex.getAllDocuments()) {
@@ -137,18 +141,25 @@ public class QueryProcessor {
     private boolean isPhraseSearch(String query) {
         return query.startsWith("\"") && query.endsWith("\"");
     }
-    /*for testing*/
-    public static void main(String[] args) throws Exception {
+    /for testing/
+    public static void main(String[] args) {
         MongoClientConnect.start();
         QueryProcessor queryProcessor = new QueryProcessor();
-        while(true) {
-            System.out.println("Enter the Query or e to break");
-            Scanner scanner = new Scanner(System.in);
-            String query = scanner.nextLine();
-            if(query.equals("e"))
-                break;
-            List<Document> result = queryProcessor.processQuery(query);
-            System.out.println("debug");
+        try (Scanner scanner = new Scanner(System.in)) {
+            while (true) {
+                System.out.println("Enter the Query or 'e' to exit:");
+                String query = scanner.nextLine().trim();
+                if (query.equalsIgnoreCase("e")) {
+                    break;
+                }
+                List<Document> pages = queryProcessor.processQuery(query);
+                System.out.println("Total Results: " + pages.size());
+                for (Document page : pages) {
+                    System.out.println(page.toString());
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }
