@@ -148,6 +148,7 @@ public class QueryProcessor {
             if(query.equals("e"))
                 break;
             List<Document> result = queryProcessor.processQuery(query);
+            System.out.println("debug");
         }
     }
 }
