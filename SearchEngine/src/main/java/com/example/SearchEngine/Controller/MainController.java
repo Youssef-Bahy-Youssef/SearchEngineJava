@@ -4,16 +4,13 @@ import com.example.SearchEngine.Model.Page;
 import com.example.SearchEngine.Model.invertedIndex;
 import com.example.SearchEngine.Repository.InvertedFileRepo;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import opennlp.tools.stemmer.PorterStemmer;
-import java.util.ArrayList;
-import java.util.List;
+
+import java.util.*;
+
 import org.bson.Document;
 
-import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -27,16 +24,68 @@ public class MainController {
     public  void addStudent(@RequestBody invertedIndex invFile){
         invertedFileRepo.save(invFile);
     }
-//    @GetMapping("/")
-//    public List<invertedIndex> getAll(){
-//        return invertedFileRepo.findAll();
-//    }
-   @GetMapping("/")
-   public List<Page> start(String word){
-       return processQuery("halo");
+
+   @GetMapping("/search")
+   public List<String> start( @RequestParam String query){
+       List<Page> pages= processQuery(query);
+       Map<String, Double> unsortedMap = new HashMap<>();
+
+       for(Page p:pages){
+           double prev=0;
+           if(unsortedMap.get(p.url)!=null){
+               prev=unsortedMap.get(p.url);
+           }
+           unsortedMap.put(p.url, prev+p.tf_idf*.6+p.rank*.4);
+       }
+       List<Map.Entry<String, Double>> list = new LinkedList<>(unsortedMap.entrySet());
+
+       // Sort the list by values
+       Collections.sort(list, new Comparator<Map.Entry<String, Double>>() {
+           public int compare(Map.Entry<String, Double> o1, Map.Entry<String, Double> o2) {
+               return (o1.getValue()).compareTo(o2.getValue());
+           }
+       });
+       // Put sorted entries back into the map
+       Map<String, Double> sortedByValueMap = new LinkedHashMap<>();
+
+       for (Map.Entry<String, Double> entry : list) {
+           sortedByValueMap.put(entry.getKey(), entry.getValue());
+       }
+
+       List<String> results=Arrays.asList(new String[unsortedMap.size()]);;
+       int i= unsortedMap.size()-1;
+       int j=0;
+       // Print the sorted map by values
+       for (Map.Entry<String, Double> entry : sortedByValueMap.entrySet()) {
+           System.out.println(entry.getKey() + ": " + entry.getValue());
+           results.set(i, entry.getKey());
+           i--;
+           j++;
+           if(j==200){
+               break;
+           }
+       }
+       i=0;
+       for (;i<results.size();i++){
+           System.out.println(results.get(i));
+       }
+       return results;
+
    }
+    @GetMapping("/example")
+    public String example(
+            @RequestParam String param1,
+            @RequestParam(required = false) String param2) {
+        // Access the query parameters 'param1' and 'param2'
+        return "Value of param1: " + param1 + ", Value of param2: " + param2;
+    }
     public  invertedIndex getDocumentsByWord(String word){
-        return invertedFileRepo.findByWord("halo").get(0);
+        List<invertedIndex> result= invertedFileRepo.findByWord(word);
+        if(result.isEmpty()){
+            return  null;
+        }else {
+            return result.getFirst();
+        }
     }
     private PorterStemmer stemmer;
 
