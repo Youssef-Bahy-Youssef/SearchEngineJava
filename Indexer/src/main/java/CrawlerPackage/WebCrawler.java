@@ -37,7 +37,7 @@ public class WebCrawler implements Runnable {
         while (crawledPaperCount.get() < MAX_CRAWLED_PAPERS) {
             String url = frontier.poll();
             if (url != null) {
-                System.out.println("Current Count: " + crawledPaperCount.get());
+                //System.out.println("Current Count: " + crawledPaperCount.get());
                 crawl(url);
             }
             else {
