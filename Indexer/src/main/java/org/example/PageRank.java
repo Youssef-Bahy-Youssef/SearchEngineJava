@@ -14,7 +14,7 @@ public class PageRank {
         //double[] rank=start(matrixData,3,1);
         pageRankMap=new HashMap<>();
         WebGraphBuilder builder = new WebGraphBuilder();
-        builder.buildGraphFromHTMLFiles("C:\\Users\\abdom\\Downloads\\Second Term-20240213T104511Z-001\\projects\\SearchEngineJava\\Indexer\\src\\main\\resources\\sample");
+        builder.buildGraphFromHTMLFiles("/Users/youssefbahy/Education/Search Engine/Saturday/SearchEngineJava/Indexer/src/main/resources/sample");
         //builder.printAdjacencyMatrix();
         double[] rank=start(builder.adjacencyMatrix,builder.adjacencyMatrix.length,.8);
         System.out.println("the page rank");
