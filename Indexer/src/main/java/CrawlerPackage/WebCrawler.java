@@ -5,6 +5,8 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.apache.tika.language.LanguageIdentifier;
+
 
 import java.io.*;
 import java.net.*;
@@ -24,21 +26,23 @@ public class WebCrawler implements Runnable {
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
     // Constants and variables
-    private static final int MAX_CRAWLED_PAPERS = 1000;
+    public static int MAX_CRAWLED_PAPERS = 1000;
     private static AtomicInteger crawledPaperCount = new AtomicInteger(0); // Atomic counter for crawled papers
     private static final String FILE_PATH = "src/main/java/CrawlerPackage/";
     private static final String VISITED_FILE = FILE_PATH + "visited.txt";
     private static final String FRONTIER_FILE = FILE_PATH + "frontier.txt";
     private static final String COMPACT_STRINGS_FILE = FILE_PATH + "compact_strings.txt";
     private static final String SEED_FILE = FILE_PATH + "seed.txt";
-
+    private static final Object fileLock = new Object(); // Lock for file operations
     @Override
     public void run() {
         while (crawledPaperCount.get() < MAX_CRAWLED_PAPERS) {
             String url = frontier.poll();
             if (url != null) {
+                //System.out.println("Current Count: " + crawledPaperCount.get());
                 crawl(url);
-            } else {
+            }
+            else {
                 // If frontier is empty, sleep for a while to reduce CPU usage
                 try {
                     Thread.sleep(100);
@@ -47,7 +51,6 @@ public class WebCrawler implements Runnable {
                 }
             }
         }
-        System.exit(0); // Terminate the program after reaching MAX_CRAWLED_PAPERS
     }
 
     /**
@@ -58,6 +61,7 @@ public class WebCrawler implements Runnable {
         loadFrontier();
         loadCompactStrings();
         loadFromSeedFile(SEED_FILE); // Load URLs from seed file
+        crawledPaperCount.set(visitedLinks.size());
         scheduleStateSaving(); // Schedule task for saving state
         addShutdownHook(); // Add shutdown hook to save state before exiting
     }
@@ -69,7 +73,7 @@ public class WebCrawler implements Runnable {
      */
     public void crawl(String url) {
         Document doc = request(url); // Fetch the HTML document
-        if (doc != null) {
+        if (doc != null && isEnglish(doc)) {
             String compactContent = generateCompactString(doc); // Generate compact string of page content
 
             // Check if compact string exists in the set of visited pages
@@ -80,6 +84,7 @@ public class WebCrawler implements Runnable {
                 writeUrlToFile(url); // Append URL to text file
                 compactStrings.add(compactContent); // Save compact string for URL
                 saveAsHtmlWithUrl(doc, url); // Save document content as HTML with URL
+                visitedLinks.put(url, true); // Mark link as visited
                 crawledPaperCount.incrementAndGet(); // Increment the crawled paper count
             }
         }
@@ -129,10 +134,35 @@ public class WebCrawler implements Runnable {
         for (String link : allowedLinks) {
             if (!visitedLinks.containsKey(link)) { // Check if link is not already visited
                 frontier.add(link); // Add link to frontier
-                visitedLinks.put(link, true); // Mark link as visited
             }
         }
     }
+
+    /**
+     * Determines if the content of a given document appears to be in English.
+     *
+     * @param doc The document to analyze for language detection.
+     * @return {@code true} if the detected language is reasonably certain to be English, {@code false} otherwise.
+     */
+    private static boolean isEnglish(Document doc) {
+        // Your language detection logic goes here
+        // For demonstration purposes, assuming language detection is done externally
+        // Create a language identifier object
+        LanguageIdentifier identifier = new LanguageIdentifier(doc.text());
+
+        // Detect the language
+        String language = identifier.getLanguage();
+
+        // Check if the detected language is English
+        if (language.equals("en")) {
+            return true;
+        } else {
+            return false;
+        }
+
+    }
+
+
 
     /**
      * Write a URL to the visited file.
@@ -140,10 +170,12 @@ public class WebCrawler implements Runnable {
      * @param url The URL to write.
      */
     private void writeUrlToFile(String url) {
-        try (BufferedWriter urlWriter = new BufferedWriter(new FileWriter(VISITED_FILE, true))) {
-            urlWriter.write(url + "\n");
-        } catch (IOException e) {
-            e.printStackTrace();
+        synchronized (fileLock) {
+            try (BufferedWriter urlWriter = new BufferedWriter(new FileWriter(VISITED_FILE, true))) {
+                urlWriter.write(url + "\n");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -179,6 +211,7 @@ public class WebCrawler implements Runnable {
      * Load compact strings from the compact strings file.
      */
     private static void loadCompactStrings() {
+
         try (BufferedReader reader = new BufferedReader(new FileReader(COMPACT_STRINGS_FILE))) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -228,14 +261,17 @@ public class WebCrawler implements Runnable {
             websiteName = websiteName.replaceAll("[^a-zA-Z0-9.-]", "_");
             pageTitle = pageTitle.replaceAll("[^a-zA-Z0-9.-]", "_");
             String fileName = directoryName + File.separator + websiteName + "_" + pageTitle + ".html";
+            fileName = fileName.replaceAll("__","");
 
             doc.select("script").remove(); // Remove all script elements
             doc.select("style").remove(); // Remove all style elements
             doc.select("*").removeAttr("<!--"); // Remove all commented elements
 
-            try (FileWriter writer = new FileWriter(fileName)) {
-                writer.write("URL: " + url + "\n");
-                writer.write(doc.outerHtml());
+            synchronized (fileLock) {
+                try (FileWriter writer = new FileWriter(fileName)) {
+                    writer.write("URL: " + url + "\n");
+                    writer.write(doc.outerHtml());
+                }
             }
         } catch (IOException | URISyntaxException e) {
             e.printStackTrace();
@@ -339,7 +375,7 @@ public class WebCrawler implements Runnable {
             saveVisited();
             saveFrontier();
             saveCompactStrings();
-        }, 0, 10, TimeUnit.MINUTES);
+        }, 0, 5, TimeUnit.MINUTES);
     }
 
     /**
@@ -361,11 +397,24 @@ public class WebCrawler implements Runnable {
     public static void main(String[] args) {
         System.out.println("Enter the Number of Threads:");
         Scanner scanner = new Scanner(System.in);
-        int nThreads = scanner.nextInt(); // Read the number of threads from the user
+        int nThreads = scanner.nextInt();
+        System.out.println("Enter the Number of Pages:");
+        int nPages = scanner.nextInt();
+        WebCrawler.MAX_CRAWLED_PAPERS = nPages;
         WebCrawler.StartUP(); // Start the web crawler
+        List<Thread> threads = new ArrayList<>();
         for (int i = 0; i < nThreads; i++) {
-            new Thread(new WebCrawler()).start(); // Start multiple threads
+            Thread thread = new Thread(new WebCrawler());
+            threads.add(thread);
+            thread.start();
         }
+        for (Thread thread : threads) {
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        System.exit(0);
     }
-
 }

@@ -5,4 +5,5 @@ module Indexer {
     requires org.mongodb.driver.sync.client;
     requires java.desktop;
     requires org.apache.opennlp.tools;
+    requires tika.core;
 }
