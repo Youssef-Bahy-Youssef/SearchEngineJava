@@ -15,6 +15,7 @@ import java.util.concurrent.TimeUnit;
 import static java.lang.Math.*;
 public class Indexer {
     private Map<String, HashMap<String, IndexerObj>> invertedIndex;
+    private Map<String, Map<String, ArrayList<Integer>>> wordIndex;
     private Map<String, ArrayList<String>> documents;
     private Map<String, Boolean>urls;
     private Map<String, Boolean> stopWords;
@@ -53,6 +54,7 @@ public class Indexer {
 
     public Indexer(File folder) throws Exception {
         invertedIndex = new HashMap<>();
+        wordIndex = new HashMap<>();
         documents = new HashMap<>();
         urls = new HashMap<>();
         stopWords = new HashMap<>();
@@ -64,8 +66,7 @@ public class Indexer {
         words = new HashMap<>();
         docCount = 0;
 
-//        mongoDB = new MongoDB();
-        MongoClientConnect.start();
+//        MongoClientConnect.start();
         //calculate pagerank
         PageRank.start();
         //PageRank.pageRankMap[]
@@ -80,11 +81,48 @@ public class Indexer {
         calcTFIDF();
         createIndex();
         createSearchIndex();
+        createWordIndex();
         printDocuments();
         scheduleTask();
     }
+    private boolean calculatePhraseDFS(int lastIndex, int wordCount, String url, ArrayList<String> words) {
+        if (words == null || words.isEmpty() || wordCount == words.size()) {
+            return true;
+        }
+        boolean result = true;
+        Map<String, ArrayList<Integer>> indexes = new HashMap<>();
+        indexes = wordIndex.get(words.get(wordCount));
+        ArrayList<Integer> positions = indexes.get(url);
+        if (positions != null) {
+            for (int pos : positions) {
+                if (lastIndex == -1 || lastIndex == pos - 1) {
+                    result |= calculatePhraseDFS(pos, wordCount + 1, url, words);
+                } else {
+                    return false;
+                }
+            }
+        } else {
+            return false;
+        }
+
+        return result;
+    }
+    private void phrase(String query) {
+        ArrayList<String> words = new ArrayList<>();
+        splitWords(query, words);
+        ArrayList<String> pages = new ArrayList<>();
+        urls.forEach((url, ok)-> {
+            if(ok) {
+                Boolean ret = calculatePhraseDFS(-1, 0, url, words);
+                System.out.println(ret);
+                if(ret) {
+                    pages.add(url);
+                }
+            }
+        });
+    }
     private void readStopWords() throws IOException {
-        Scanner scanner = new Scanner(new File(System.getenv("RESOURCES_PATH")+"stopwords.txt"));
+        Scanner scanner = new Scanner(new File("/Users/youssefbahy/Education/Search Engine/Saturday/SearchEngineJava/Indexer/src/main/resources/stopwords.txt"));
         while (scanner.hasNext()) {
             stopWords.put(scanner.next(), Boolean.TRUE);
         }
@@ -111,6 +149,26 @@ public class Indexer {
                 String parsedText = html2text(html.toString());
                 ArrayList<String> list = new ArrayList<>();
                 tokenize(parsedText, list);
+//                -------------------------------------------------------------------------------
+//                List<String> originalWordsList = List.of(parsedText.split(" "));
+//                ArrayList<String>originalWords = new ArrayList<>();
+//                originalWords.addAll(originalWordsList);
+//                -------------------------------------------------------------------------------
+//                for(String word: list) {
+//                    wordIndex.p
+//
+//                }
+                ArrayList<String> originalWords = new ArrayList<>();
+                splitWords(parsedText, originalWords);
+                int i=0;
+                for(String word:originalWords) {
+                    i++;
+                   wordIndex.putIfAbsent(word, new HashMap<>());
+                    Map<String, ArrayList<Integer>>page = wordIndex.get(word);
+                    page.putIfAbsent(url, new ArrayList<>());
+                    ArrayList<Integer> item = page.get(url);
+                    item.add(i);
+                }
                 removeStopWords(list);
                 documents.put(url, list);
                 docCount++;
@@ -119,7 +177,24 @@ public class Indexer {
                 e.printStackTrace();
             }
         }
+        urls.forEach((url, ok) -> {
+            phrase("Find centralized, trusted content and collaborate around the");
+        });
     }
+//    private void splitWords(String str, ArrayList<String> list) {
+//        String[] words = str.split(" ");
+//        for (String word : words) {
+//            list.add(word);
+//        }
+//    }
+private void splitWords(String document, ArrayList<String> tokens) {
+//    document = document.toLowerCase(Locale.ROOT);
+    StringTokenizer st = new StringTokenizer(document);
+    while (st.hasMoreTokens()) {
+        List<String> l = List.of(st.nextToken().split(" "));
+        tokens.addAll(l);
+    }
+}
     private void tokenize(String document, ArrayList<String> tokens) {
         document = document.toLowerCase(Locale.ROOT);
         StringTokenizer st = new StringTokenizer(document);
@@ -167,9 +242,14 @@ public class Indexer {
     private void stemming() {
         documents.forEach((url, doc) -> {
             for (int i = 0; i < doc.size(); i++) {
-                String word = doc.get(i);
-                word = stemmer.stemWord(word);
+                String originalWord = doc.get(i);
+                String word = stemmer.stemWord(originalWord);
                 doc.set(i, word);
+                invertedIndex.putIfAbsent(word, new HashMap<>());
+                HashMap<String, IndexerObj>page = invertedIndex.get(word);
+                page.putIfAbsent(url, new IndexerObj());
+                IndexerObj item = page.get(url);
+                item.positions.put(i, originalWord);
             }
         });
     }
@@ -193,7 +273,7 @@ public class Indexer {
             ArrayList<String> doc = entry.getValue();
             Map<String, Boolean>isVisited = new HashMap<>();
             for (String word : doc) {
-                if(isVisited.containsValue(word)) {
+                if(isVisited.containsKey(word)) {
                     continue;
                 }else {
                     DF.put(word, DF.get(word) + 1);
@@ -239,7 +319,7 @@ public class Indexer {
                 item.url = url;
                 item.rank =PageRank.pageRankMap.get(url);
                 item.TFIDF = (double) TFIDF.get(word).get(url);
-                item.positions.add(wordPos);
+//                item.positions.add(wordPos);
             }
         }
     }
@@ -252,6 +332,9 @@ public class Indexer {
             });
             MongoClientConnect.InsertWord(word, pages);
         });
+    }
+    private void createWordIndex() {
+        wordIndex.forEach(MongoClientConnect::InsertWordIndex);
     }
     private void printDocuments() {
         System.out.print(String.format("%10s", " "));
@@ -287,7 +370,7 @@ public class Indexer {
         return false; // No files have been modified since the last reindexing
     }
     public void checkReIndexing() throws Exception {
-        File folder = new File("src/main/resources/Files");
+        File folder = new File("/Users/youssefbahy/Education/Search Engine/Saturday/SearchEngineJava/Indexer/src/main/resources/samole");
         Boolean ok = hasFilesModifiedAfterLastReindexing(folder);
         if(ok) {
             Indexer indexer = new Indexer(folder);
@@ -305,7 +388,7 @@ public class Indexer {
         scheduler.scheduleAtFixedRate(task, 10000, INTERVAL_HOURS, TimeUnit.HOURS);
     }
     public static void main(String[] args) throws Exception {
-        File folder = new File(System.getenv("RESOURCES_PATH")+"sample");
+        File folder = new File("/Users/youssefbahy/Education/Search Engine/Saturday/SearchEngineJava/Indexer/src/main/resources/sample");
         Indexer indexer = new Indexer(folder);
     }
 }

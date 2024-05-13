@@ -19,9 +19,11 @@ import javax.print.Doc;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 public class MongoClientConnect {
     public static MongoCollection<Document> invertedIndexCollection;
+    public static MongoCollection<Document> wordIndexedCollection;
     public static MongoDatabase database;
     public static MongoClient mongoClient;
 
@@ -38,6 +40,7 @@ public class MongoClientConnect {
             mongoClient = MongoClients.create(settings);
             database = mongoClient.getDatabase("SearchIndex");
             invertedIndexCollection = database.getCollection("invertedIndex");
+            wordIndexedCollection = database.getCollection("WordIndex");
             Document doc = invertedIndexCollection.find().first();
             if (doc != null) {
                 System.out.println(doc.toJson());
@@ -66,6 +69,19 @@ public class MongoClientConnect {
         InsertOneResult result = invertedIndexCollection.insertOne(wordDocument);
         System.out.println("Success! Inserted document id: " + result.getInsertedId());
     }
+    public static void InsertWordIndex(String word, Map<String, ArrayList<Integer>> items) {
+        List<Document> documents = new ArrayList<>();
+        items.forEach((url, indexes) -> {
+            Document document = new Document("word", word)
+                    .append("url", url)
+                    .append("positions", indexes);
+            documents.add(document);
+        });
+        Document wordIndexDocument = new Document("Word", word)
+                .append("Pages", documents);
+        InsertOneResult result = wordIndexedCollection.insertOne(wordIndexDocument);
+        System.out.println("Success! Inserted document id: " + result.getInsertedId());
+    }
     /**
      * Retrieves documents associated with a given word from the MongoDB collection.
      *
@@ -77,6 +93,19 @@ public class MongoClientConnect {
 
         // Filter documents where the "Word" field matches the provided word
         FindIterable<Document> documents = invertedIndexCollection.find(Filters.eq("Word", word));
+
+        // Iterate over the documents found and add them to a list
+        for (Document doc : documents) {
+            resultDocuments.add(doc);
+        }
+
+        return resultDocuments;
+    }
+    public static List<Document> getWordIndexesByWord(String word) {
+        List<Document> resultDocuments = new ArrayList<>();
+
+        // Filter documents where the "Word" field matches the provided word
+        FindIterable<Document> documents = wordIndexedCollection.find(Filters.eq("Word", word));
 
         // Iterate over the documents found and add them to a list
         for (Document doc : documents) {
