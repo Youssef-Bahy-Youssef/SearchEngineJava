@@ -22,7 +22,6 @@ public class WebCrawler implements Runnable {
     private static Set<String> visitedCompactStrings = ConcurrentHashMap.newKeySet(); // Set for storing compact strings of visited pages
     private static Queue<String> frontier = new ConcurrentLinkedQueue<>(); // Queue for frontier URLs
     private static Map<String, Boolean> visitedLinks = new ConcurrentHashMap<>(); // Map for storing visited links
-    private static Queue<String> compactStrings = new ConcurrentLinkedQueue<>(); // Queue for storing compact strings of URLs
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
     // Constants and variables
@@ -39,7 +38,6 @@ public class WebCrawler implements Runnable {
         while (crawledPaperCount.get() < MAX_CRAWLED_PAPERS) {
             String url = frontier.poll();
             if (url != null) {
-                //System.out.println("Current Count: " + crawledPaperCount.get());
                 crawl(url);
             }
             else {
@@ -75,15 +73,13 @@ public class WebCrawler implements Runnable {
         Document doc = request(url); // Fetch the HTML document
         if (doc != null && isEnglish(doc)) {
             String compactContent = generateCompactString(doc); // Generate compact string of page content
-
             // Check if compact string exists in the set of visited pages
             if (!visitedCompactStrings.contains(compactContent)) {
                 visitedCompactStrings.add(compactContent); // Add compact string to visited set
                 processLinks(doc, url); // Process links on the page
-                url = URLNormalizer.normalize(url);
                 writeUrlToFile(url); // Append URL to text file
-                compactStrings.add(compactContent); // Save compact string for URL
                 saveAsHtmlWithUrl(doc, url); // Save document content as HTML with URL
+                url = URLNormalizer.normalize(url);
                 visitedLinks.put(url, true); // Mark link as visited
                 crawledPaperCount.incrementAndGet(); // Increment the crawled paper count
             }
@@ -102,7 +98,6 @@ public class WebCrawler implements Runnable {
                 String url = line.trim();
                 if (!visitedLinks.containsKey(url)) { // Check if URL is not already visited
                     frontier.add(url); // Add URL to frontier
-                    visitedLinks.put(url, true); // Mark URL as visited
                 }
             }
         } catch (IOException e) {
@@ -215,7 +210,7 @@ public class WebCrawler implements Runnable {
         try (BufferedReader reader = new BufferedReader(new FileReader(COMPACT_STRINGS_FILE))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                compactStrings.add(line.trim());
+                visitedCompactStrings.add(line.trim());
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -359,7 +354,7 @@ public class WebCrawler implements Runnable {
      */
     private static void saveCompactStrings() {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(COMPACT_STRINGS_FILE))) {
-            for (String compactString : compactStrings) {
+            for (String compactString : visitedCompactStrings) {
                 writer.write(compactString + "\n");
             }
         } catch (IOException e) {
@@ -375,7 +370,7 @@ public class WebCrawler implements Runnable {
             saveVisited();
             saveFrontier();
             saveCompactStrings();
-        }, 0, 5, TimeUnit.MINUTES);
+        }, 0, 2, TimeUnit.MINUTES);
     }
 
     /**
